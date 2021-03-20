@@ -1,0 +1,321 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>Amazon Affiliate Blog CMS Sample</title>
+<script type="text/javascript" src="//code.jquery.com/jquery-2.2.4.min.js"></script>
+<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/4.3.0/css/bootstrap.min.css"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.3.0/js/bootstrap.min.js"></script>
+<link href="//stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"/>
+
+<link href="//cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" rel="stylesheet"/>
+<link href="//cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.css" rel="stylesheet"/>
+<script src="//cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.js"></script>
+
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<meta name="apple-mobile-web-app-title" content="Amazon Affiliate Blog CMS"/>
+
+<script>
+$(function(){
+  loadList();
+
+  $('#keyword_form').submit( function(){
+    var keyword = $('#keyword').val();
+    if( keyword ){
+      $('#myslick').html( '' );
+      $.ajax({
+        type: 'GET',
+        url: 'https://amazonsearch.mybluemix.net/' + keyword,
+        success: function( result ){
+          if( result && result.status && result.items ){
+            result.items.forEach( function( item ){
+              var card = '<div><div class="card_ mb-3">'
+                + '<div class="row no-gutters">'
+                + '<div class="col-3">'
+                + '<a target="_blank" href="' + item.link + '">'
+                + '<img class="align-items-center" src="' + item.image_src + '" style="width:100%;"/>'
+                + '</a>'
+                + '</div>'
+                + '<div class="col-9">'
+                + '<a href="#" onclick=\'createDoc(' + JSON.stringify( item ) + ');\'>'
+                + '<div class="card-body">'
+                + '<h5 class="card-title">' + item.name + '</h5>'
+                + '<p class="card-text">ASIN: ' + item.asin + '<br/>価格: ' + item.price + '</p>'
+                + '</div>'
+                + '</a>'
+                + '</div>'
+                + '</div>'
+                + '</div></div>';
+              $('#myslick').append( card );
+            });
+          }
+
+          $('.myslick').slick({
+            infinite: true,
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            initialSlide: 0,
+            dots: true,
+            fade: true
+          });
+        },
+        error: function( e0, e1, e2 ){
+          console.log( e0, e1, e2 );
+        }
+      });
+    }
+    
+    return false;
+  });
+});
+
+function loadList(){
+  $('#list-tbody').html( '' );
+  $.ajax({
+    type: 'GET',
+    url: 'https://cloudant-crud-api.mybluemix.net/aablog',
+    success: function( result ){
+      if( result && result.status && result.docs ){
+        result.docs.forEach( function( doc ){
+          var body = doc.body;
+          if( body.length > 80 ){
+            body = body.substr( 0, 80 ) + '..';
+          }
+          var tr = '<tr>'
+            + '<td><img src="' + doc.image + '" style="height:20px;"/></td>'
+            + '<td>' + doc.name + '</td>'
+            + '<td>' + doc.asin + '</td>'
+            + '<td>' + body + '</td>'
+            + '<td>'
+            + '<button class="btn btn-success" onClick=\'editDoc(' + JSON.stringify( doc ) + ')\'>編集</button>'
+            + '<button class="btn btn-danger" onClick=\'deleteDoc("' + doc._id + '","' + doc.name + '")\'>削除</button>'
+            + '</td>'
+            + '</tr>';
+          $('#list-tbody').append( tr );
+        });
+      }
+    },
+    error: function( e0, e1, e2 ){
+      console.log( e0, e1, e2 );
+    }
+  });
+}
+
+function createDoc( item ){
+  if( item ){
+    if( item.id ){
+      $('#edit_id').val( item.id );
+    }else{
+      $('#edit_id').val( '' );
+    }
+    $('#edit_img').attr( 'src', item.image_src );
+    $('#edit_name').val( item.name );
+    $('#edit_asin').val( item.asin );
+    $('#edit_link').val( item.link );
+    $('#edit_price').val( item.price );
+    $('#edit_star').val( item.star );
+    $('#edit_denom').val( item.denom );
+  }
+}
+
+function editDoc( item ){
+  if( item ){
+    if( item._id ){
+      $('#edit_id').val( item._id );
+    }else{
+      $('#edit_id').val( '' );
+    }
+    $('#edit_img').attr( 'src', item.image );
+    $('#edit_name').val( item.name );
+    $('#edit_asin').val( item.asin );
+    $('#edit_link').val( item.link );
+    $('#edit_price').val( item.price );
+    $('#edit_star').val( item.star );
+    $('#edit_denom').val( item.denom );
+  }
+}
+
+function saveDoc(){
+  var edit_id = $('#edit_id').val();
+  var edit_img = $('#edit_img').attr( 'src' );
+  var edit_name = $('#edit_name').val();
+  var edit_asin = $('#edit_asin').val();
+  var edit_link = $('#edit_link').val();
+  var edit_price = $('#edit_price').val();
+  var edit_star = $('#edit_star').val();
+  var edit_denom = $('#edit_denom').val();
+  var edit_body = $('#edit_body').val();
+  var data = {
+    image: edit_img,
+    name: edit_name,
+    asin: edit_asin,
+    link: edit_link,
+    price: parseInt( edit_price ),
+    star: parseInt( edit_star ),
+    body: edit_body
+  };
+
+  if( edit_id ){
+    $.ajax({
+      type: 'PUT',
+      url: 'https://cloudant-crud-api.mybluemix.net/aablog/' + edit_id,
+      data: data,
+      success: function( result ){
+        loadList();
+      },
+      error: function( e0, e1, e2 ){
+        console.log( e0, e1, e2 );
+      }
+    });
+  }else{
+    var id = generateId();
+    $.ajax({
+      type: 'POST',
+      url: 'https://cloudant-crud-api.mybluemix.net/aablog/' + id,
+      data: data,
+      success: function( result ){
+        loadList();
+      },
+      error: function( e0, e1, e2 ){
+        console.log( e0, e1, e2 );
+      }
+    });
+  }
+}
+
+function deleteDoc( id, name ){
+  if( confirm( name + 'を削除しますか？' ) ){
+    $.ajax({
+      type: 'DELETE',
+      url: 'https://cloudant-crud-api.mybluemix.net/aablog/' + id,
+      success: function( result ){
+        loadList();
+      },
+      error: function( e0, e1, e2 ){
+        console.log( e0, e1, e2 );
+      }
+    });
+  }
+}
+
+//. ID作成用関数
+function generateId(){
+  var s = 1000;
+  var id = '' + ( new Date().getTime().toString(16) ) + Math.floor( s * Math.random() ).toString(16);
+
+  return id;
+}
+</script>
+<style>
+html, body{
+  height: 100%;
+}
+body{
+  padding-top: 70px;
+}
+nav{
+  background-color: #ccccff;
+}
+#search{
+  height: 40%;
+}
+a{
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- //navi -->
+  <nav class="navbar fixed-top">
+    <a class="navbar-brand" href="/">Amazon Affiliate Blog CMS Sample</a>
+    <div class="navbar-nav mr-auto">
+    </div>
+    <div class="navbar-nav">
+      <li class="nav-item" id="navitem">
+      </li>
+    </div>
+  </nav>
+  <!-- navi// -->
+
+  <div class="container p-3" id="tab">
+    <ul class="nav nav-tabs">
+      <li class="nav-item">
+        <a href="#list" data-toggle="tab" class="nav-link active">データ一覧</a>
+      </li>
+      <li class="nav-item">
+        <a href="#search" data-toggle="tab" class="nav-link">新規作成</a>
+      </li>
+    </ul>
+    <div class="tab-content">
+      <div id="list" class="tab-pane active">
+        <table class="table table-bordered" id="list-table">
+          <thead>
+            <tr>
+              <th>#</th><th>name</th><th>asin</th><th>body</th><th>actions</th>
+            </tr>
+          </thead>
+          <tbody id="list-tbody">
+          </tbody>
+        </table>
+
+      </div>
+      <div id="search" class="tab-pane">
+        <form id="keyword_form" action="#">
+        <input class="form-control" name="keyword" id="keyword" placeholder="検索キーワード"/>
+        </form>
+
+        <div class="myslick" id="myslick">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container" style="height: 100px;">
+  </div>
+
+  <div class="container" id="edit">
+    <input type="hidden" id="edit_id" value=""/>
+    <input type="hidden" id="edit_denom" value=""/>
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td>画像</td>
+          <td><img src="" id="edit_img"/></td>
+        </tr>
+        <tr>
+          <td>名前</td>
+          <td><input type="text" class="form-control" id="edit_name" value="" readonly/></td>
+        </tr>
+        <tr>
+          <td>ASIN</td>
+          <td><input type="text" class="form-control" id="edit_asin" value="" readonly/></td>
+        </tr>
+        <tr>
+          <td>LINK</td>
+          <td><input type="text" class="form-control" id="edit_link" value="" readonly/></td>
+        </tr>
+        <tr>
+          <td>価格</td>
+          <td><input type="text" class="form-control" id="edit_price" value="" readonly/></td>
+        </tr>
+        <tr>
+          <td>評価</td>
+          <td><input type="text" class="form-control" id="edit_star" value="" readonly/></td>
+        </tr>
+        <tr>
+          <td>本文</td>
+          <td><textarea class="form-control" id="edit_body"></textarea></td>
+        </tr>
+        <tr>
+          <td colspan="2" style="text-align: right;"><button class="btn btn-primary" onClick="saveDoc();">保存</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
+
